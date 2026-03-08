@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEED - Smart Receipt System</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: 'Courier New', monospace; background: #f0f0f0; margin: 0; padding: 10px; }
+        .container { max-width: 400px; margin: auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #reader { width: 100%; border: 3px solid gold; border-radius: 8px; background: #000; min-height: 250px; margin-bottom: 15px; }
+        
+        /* 80mm Thermal Receipt Style */
+        #invoice-box { width: 80mm; padding: 10px; margin: auto; background: #fff; border: 1px solid #eee; }
+        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+        .header h2 { margin: 0; font-size: 20px; text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { border-bottom: 1px solid #000; text-align: left; padding: 5px 0; }
+        td { padding: 8px 0; border-bottom: 0.5px solid #eee; }
+        
+        .qty-input { width: 40px; text-align: center; font-size: 14px; font-weight: bold; border: 1px solid #ddd; }
+        .total-area { border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; text-align: right; font-weight: bold; font-size: 18px; color: #d32f2f; }
+        
+        .btn-group { display: flex; gap: 8px; margin-top: 20px; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
+        .btn-save { background: #000; color: gold; }
+        .btn-clear { background: #ff4444; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="reader"></div>
+
+    <div id="invoice-box">
+        <div class="header">
+            <h2>NEED - নিড</h2>
+            <p>চানখারপুল, ৩৭ নবাব কাটারা, নিমতলী</p>
+            <p>মোবাইল: +880 1616-538522</p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody id="bill-items"></tbody>
+        </table>
+
+        <div class="total-area">TOTAL: <span id="grand-total">0</span> BDT</div>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn-save" onclick="generatePDF()">SAVE RECEIPT 📥</button>
+        <button class="btn-clear" onclick="resetAll()">RESET 🗑️</button>
+    </div>
+</div>
+
+<script>
+    // Sound & Vibration Logic
+    const beep = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep() {
+        const osc = beep.createOscillator();
+        const gain = beep.createGain();
+        osc.connect(gain);
+        gain.connect(beep.destination);
+        osc.frequency.value = 1000;
+        gain.gain.value = 0.1;
+        osc.start();
+        osc.stop(beep.currentTime + 0.1);
+    }
+
+    // Database
+    const products = {
+       "754083509508": { name: "Potato crackers", price: 10 },
+        "841165164509": { name: "Peanut bar", price: 5 },
+        "840205714216": { name: "Mama", price:5},
+        "8888202045720": { name: "Enchanteur powder 125g", price: 250 },
+"8888202054623": { name: "body lotion 250ml", price: 300 },
+"8941100500880": { name: "Meril 100ml", price: 100 },
+        "12345678": { name: "NEED Premium", price: 1200 }
+    };
+
+    let cart = {};
+    let lastScanTime = 0;
+
+    function onScanSuccess(decodedText) {
+        const now = Date.now();
+        if (now - lastScanTime > 2000) { // ২ সেকেন্ড ডিলে যাতে ভুল করে বারবার না ওঠে
+            if (products[decodedText]) {
+                playBeep();
+                if (navigator.vibrate) navigator.vibrate(100);
+                
+                if (cart[decodedText]) {
+                    cart[decodedText].qty += 1;
+                } else {
+                    cart[decodedText] = { ...products[decodedText], qty: 1 };
+                }
+                renderTable();
+                lastScanTime = now;
+            } else {
+                alert("Unknown Product: " + decodedText);
+            }
+        }
+    }
+
+    function updateQty(code, val) {
+        const n = parseInt(val);
+        if (n > 0) { cart[code].qty = n; renderTable(); }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('bill-items');
+        tbody.innerHTML = "";
+        let total = 0;
+        for (let code in cart) {
+            const item = cart[code];
+            const sub = item.price * item.qty;
+            total += sub;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td><input type="number" class="qty-input" value="${item.qty}" onchange="updateQty('${code}', this.value)"></td>
+                    <td>${sub}</td>
+                </tr>`;
+        }
+        document.getElementById('grand-total').innerText = total;
+    }
+
+    // ক্যামেরা এরর ফিক্স করতে এই পদ্ধতি ব্যবহার করুন
+    function initScanner() {
+        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+            fps: 15, 
+            qrbox: {width: 250, height: 150},
+            rememberLastUsedCamera: true
+        });
+        html5QrcodeScanner.render(onScanSuccess);
+    }
+
+    window.onload = initScanner;
+
+    function generatePDF() {
+        const element = document.getElementById('invoice-box');
+        const opt = {
+            margin: 5,
+            filename: 'NEED_Bill.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 3 },
+            jsPDF: { unit: 'mm', format: [80, 150], orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
+    }
+
+    function resetAll() {
+        if(confirm("সব ডাটা মুছে যাবে। আপনি কি নিশ্চিত?")) {
+            cart = {};
+            renderTable();
+        }
+    }
+</script>
+</body>
+</html>
