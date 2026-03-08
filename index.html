@@ -190,11 +190,11 @@
         });
 
         const opt = {
-            margin: [5, 4, 5, 4],
+            margin: [2, 0, 2, 0],
             filename: 'NEED_Bill.pdf',
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 3, useCORS: true, windowWidth: 280 }, // মোবাইল উইন্ডো ফিক্স
-            jsPDF: { unit: 'mm', format: [90, 160], orientation: 'portrait' }
+            html2canvas: { scale: 3, useCORS: true, windowWidth: 265 }, // মোবাইল উইন্ডো ফিক্স
+            jsPDF: { unit: 'mm', format: [80, 150], orientation: 'portrait' }
         };
 
         html2pdf().set(opt).from(element).save().then(() => {
