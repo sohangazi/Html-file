@@ -3,27 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEED - Smart Receipt System</title>
+    <title>NEED - Auto Scanner</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: 'Courier New', monospace; background: #f0f0f0; margin: 0; padding: 10px; }
-        .container { max-width: 400px; margin: auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #reader { width: 100%; border: 3px solid gold; border-radius: 8px; background: #000; min-height: 250px; margin-bottom: 15px; }
-        
-        /* 80mm Thermal Receipt Style */
-        #invoice-box { width: 80mm; padding: 10px; margin: auto; background: #fff; border: 1px solid #eee; }
-        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-        .header h2 { margin: 0; font-size: 20px; text-transform: uppercase; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        body { font-family: 'Courier New', monospace; background: #f4f4f4; padding: 10px; margin: 0; }
+        .container { max-width: 400px; margin: auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        #reader { width: 100%; border: 3px solid #000; border-radius: 8px; background: #000; overflow: hidden; }
+        #invoice-box { width: 80mm; padding: 10px; margin: auto; background: #fff; }
+        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+        .header h2 { margin: 5px 0; font-size: 24px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
         th { border-bottom: 1px solid #000; text-align: left; padding: 5px 0; }
         td { padding: 8px 0; border-bottom: 0.5px solid #eee; }
-        
-        .qty-input { width: 40px; text-align: center; font-size: 14px; font-weight: bold; border: 1px solid #ddd; }
-        .total-area { border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; text-align: right; font-weight: bold; font-size: 18px; color: #d32f2f; }
-        
+        .qty-input { width: 40px; text-align: center; font-weight: bold; border: 1px solid #ddd; }
+        .total-area { border-top: 2px solid #000; margin-top: 15px; padding-top: 10px; text-align: right; font-weight: bold; font-size: 18px; }
         .btn-group { display: flex; gap: 8px; margin-top: 20px; }
-        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .btn-save { background: #000; color: gold; }
         .btn-clear { background: #ff4444; color: white; }
     </style>
@@ -32,28 +28,18 @@
 
 <div class="container">
     <div id="reader"></div>
-
     <div id="invoice-box">
         <div class="header">
             <h2>NEED - নিড</h2>
             <p>চানখারপুল, ৩৭ নবাব কাটারা, নিমতলী</p>
             <p>মোবাইল: +880 1616-538522</p>
         </div>
-
         <table>
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
             <tbody id="bill-items"></tbody>
         </table>
-
         <div class="total-area">TOTAL: <span id="grand-total">0</span> BDT</div>
     </div>
-
     <div class="btn-group">
         <button class="btn-save" onclick="generatePDF()">SAVE RECEIPT 📥</button>
         <button class="btn-clear" onclick="resetAll()">RESET 🗑️</button>
@@ -61,20 +47,15 @@
 </div>
 
 <script>
-    // Sound & Vibration Logic
-    const beep = new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep() {
-        const osc = beep.createOscillator();
-        const gain = beep.createGain();
-        osc.connect(gain);
-        gain.connect(beep.destination);
-        osc.frequency.value = 1000;
-        gain.gain.value = 0.1;
-        osc.start();
-        osc.stop(beep.currentTime + 0.1);
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = 1000; gain.gain.value = 0.1;
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
-    // Database
     const products = {
        "754083509508": { name: "Potato crackers", price: 10 },
         "841165164509": { name: "Peanut bar", price: 5 },
@@ -86,31 +67,20 @@
     };
 
     let cart = {};
-    let lastScanTime = 0;
+    let lastScan = 0;
 
     function onScanSuccess(decodedText) {
         const now = Date.now();
-        if (now - lastScanTime > 2000) { // ২ সেকেন্ড ডিলে যাতে ভুল করে বারবার না ওঠে
+        if (now - lastScan > 2000) {
             if (products[decodedText]) {
                 playBeep();
                 if (navigator.vibrate) navigator.vibrate(100);
-                
-                if (cart[decodedText]) {
-                    cart[decodedText].qty += 1;
-                } else {
-                    cart[decodedText] = { ...products[decodedText], qty: 1 };
-                }
+                if (cart[decodedText]) cart[decodedText].qty += 1;
+                else cart[decodedText] = { ...products[decodedText], qty: 1 };
                 renderTable();
-                lastScanTime = now;
-            } else {
-                alert("Unknown Product: " + decodedText);
+                lastScan = now;
             }
         }
-    }
-
-    function updateQty(code, val) {
-        const n = parseInt(val);
-        if (n > 0) { cart[code].qty = n; renderTable(); }
     }
 
     function renderTable() {
@@ -121,45 +91,48 @@
             const item = cart[code];
             const sub = item.price * item.qty;
             total += sub;
-            tbody.innerHTML += `
-                <tr>
-                    <td>${item.name}</td>
-                    <td><input type="number" class="qty-input" value="${item.qty}" onchange="updateQty('${code}', this.value)"></td>
-                    <td>${sub}</td>
-                </tr>`;
+            tbody.innerHTML += `<tr><td>${item.name}</td><td><input type="number" class="qty-input" value="${item.qty}" onchange="updateQty('${code}', this.value)"></td><td>${sub}</td></tr>`;
         }
         document.getElementById('grand-total').innerText = total;
     }
 
-    // ক্যামেরা এরর ফিক্স করতে এই পদ্ধতি ব্যবহার করুন
-    function initScanner() {
-        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-            fps: 15, 
-            qrbox: {width: 250, height: 150},
-            rememberLastUsedCamera: true
-        });
-        html5QrcodeScanner.render(onScanSuccess);
+    function updateQty(code, val) {
+        if (parseInt(val) >= 0) { 
+            if(parseInt(val) === 0) delete cart[code];
+            else cart[code].qty = parseInt(val); 
+            renderTable(); 
+        }
     }
 
-    window.onload = initScanner;
+    // অটোমেটিক পেছনের ক্যামেরা চালু করার লজিক
+    function startAutoScanner() {
+        const html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 15, qrbox: { width: 250, height: 150 } };
+
+        // 'environment' মানে পেছনের ক্যামেরা
+        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+        .catch(err => {
+            console.error("Camera Error:", err);
+            // ব্যাক ক্যামেরা না পেলে ডিফল্ট স্ক্যানার চালু হবে
+            const scanner = new Html5QrcodeScanner("reader", config);
+            scanner.render(onScanSuccess);
+        });
+    }
+
+    window.onload = startAutoScanner;
 
     function generatePDF() {
         const element = document.getElementById('invoice-box');
-        const opt = {
+        html2pdf().set({
             margin: 5,
-            filename: 'NEED_Bill.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
+            filename: 'NEED_Receipt.pdf',
             html2canvas: { scale: 3 },
             jsPDF: { unit: 'mm', format: [80, 150], orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(element).save();
+        }).from(element).save();
     }
 
     function resetAll() {
-        if(confirm("সব ডাটা মুছে যাবে। আপনি কি নিশ্চিত?")) {
-            cart = {};
-            renderTable();
-        }
+        if(confirm("সব ডাটা মুছে যাবে। আপনি নিশ্চিত?")) { cart = {}; renderTable(); }
     }
 </script>
 </body>
