@@ -10,50 +10,53 @@
         body { font-family: 'Courier New', monospace; background: #f4f4f4; padding: 10px; margin: 0; }
         .container { max-width: 400px; margin: auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        /* Scanner Section */
         #reader { width: 100%; border: 3px solid #000; border-radius: 8px; background: #000; overflow: hidden; margin-bottom: 15px; }
         
-        /* Modal for New Product */
         #new-product-form { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; border: 2px solid #000; border-radius: 10px; z-index: 1000; width: 85%; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: white; padding: 20px; border: 2px solid #000; border-radius: 10px; z-index: 1000; width: 85%; 
         }
-        #new-product-form input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        #new-product-form input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; }
 
-        /* 80mm Thermal Receipt Style (Fixed Overflow) */
+        /* 80mm Thermal Paper Optimized Style */
         #invoice-box { 
-            width: 76mm; /* একটু কমানো হয়েছে যাতে মার্জিনে না কাটে */
+            width: 75mm; /* কাগজের ভেতরে রাখার জন্য কমানো হয়েছে */
             padding: 2mm; 
             margin: auto; 
             background: #fff; 
-            color: #000;
+            color: #000; 
         }
         .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 10px; }
-        .header h2 { margin: 5px 0; font-size: 20px; text-transform: uppercase; }
-        .header p { margin: 2px 0; font-size: 11px; }
+        .header h2 { margin: 5px 0; font-size: 18px; text-transform: uppercase; }
+        .header p { margin: 2px 0; font-size: 10px; }
         
-        /* Table Fixes */
+        /* Table Structure Fixes */
         table { 
             width: 100%; 
             border-collapse: collapse; 
-            font-size: 12px; 
-            table-layout: fixed; /* কলামের মাপ নির্দিষ্ট রাখতে */
-            word-wrap: break-word; 
+            font-size: 10px; /* ফন্ট সাইজ কমিয়ে ১০ করা হয়েছে */
+            table-layout: fixed; 
         }
-        th, td { padding: 6px 2px; border-bottom: 0.5px solid #eee; vertical-align: top; }
-        th { border-bottom: 1px solid #000; text-align: left; }
+        th, td { 
+            padding: 4px 2px; 
+            border-bottom: 0.5px solid #eee; 
+            vertical-align: top; 
+            word-wrap: break-word; /* লম্বা লেখা নিচের লাইনে পাঠাতে */
+            overflow: hidden;
+        }
+        th { border-bottom: 1px solid #000; font-weight: bold; }
         
-        /* Specific Column Widths */
-        .col-item { width: 50%; }
-        .col-qty { width: 15%; text-align: center; }
-        .col-price { width: 35%; text-align: right; }
+        /* কলামের উইডথ পিক্সেল দিয়ে ফিক্সড করা হয়েছে */
+        .col-item { width: 110px; text-align: left; }
+        .col-qty { width: 40px; text-align: center; }
+        .col-price { width: 70px; text-align: right; }
 
-        .qty-input { width: 30px; text-align: center; border: 1px solid #ccc; font-size: 12px; }
-        .total-area { border-top: 2px solid #000; margin-top: 10px; padding-top: 8px; text-align: right; font-weight: bold; font-size: 16px; }
+        .qty-input { width: 25px; text-align: center; border: 1px solid #ccc; font-size: 10px; }
+        .total-area { border-top: 1px solid #000; margin-top: 10px; padding-top: 8px; text-align: right; font-weight: bold; font-size: 14px; }
         
         .btn-group { display: flex; gap: 8px; margin-top: 20px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
-        .btn-save { background: #000; color: #FFD700; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-save { background: #000; color: gold; }
         .btn-clear { background: #ff4444; color: white; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
     </style>
@@ -66,10 +69,10 @@
     <div id="reader"></div>
 
     <div id="new-product-form">
-        <h3 style="margin-top:0">New Product!</h3>
-        <p>Code: <span id="new-barcode" style="font-weight:bold; color:red;"></span></p>
+        <h3>New Item!</h3>
+        <p>Code: <span id="new-barcode" style="color:red;"></span></p>
         <input type="text" id="new-name" placeholder="Item Name">
-        <input type="number" id="new-price" placeholder="Price (BDT)">
+        <input type="number" id="new-price" placeholder="Price">
         <div style="display:flex; gap:5px;">
             <button class="btn-save" onclick="saveNewProduct()">ADD</button>
             <button style="background:#ddd" onclick="closeForm()">CANCEL</button>
@@ -104,31 +107,16 @@
 </div>
 
 <script>
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playBeep() {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.frequency.value = 1000; gain.gain.value = 0.1;
-        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-    }
-
     let products = JSON.parse(localStorage.getItem('need_inventory')) || {};
     let cart = {};
     let lastScan = 0;
-    let pendingBarcode = "";
 
     function onScanSuccess(decodedText) {
-        const now = Date.now();
-        if (now - lastScan > 2000) {
-            playBeep();
+        if (Date.now() - lastScan > 2000) {
             if (navigator.vibrate) navigator.vibrate(100);
-            if (products[decodedText]) {
-                addToCart(decodedText);
-            } else {
-                showNewProductForm(decodedText);
-            }
-            lastScan = now;
+            if (products[decodedText]) addToCart(decodedText);
+            else showNewProductForm(decodedText);
+            lastScan = Date.now();
         }
     }
 
@@ -139,19 +127,19 @@
     }
 
     function showNewProductForm(code) {
-        pendingBarcode = code;
         document.getElementById('new-barcode').innerText = code;
         document.getElementById('new-product-form').style.display = 'block';
         document.getElementById('overlay').style.display = 'block';
+        window.pendingCode = code;
     }
 
     function saveNewProduct() {
         const name = document.getElementById('new-name').value;
         const price = document.getElementById('new-price').value;
         if (name && price) {
-            products[pendingBarcode] = { name: name, price: parseInt(price) };
+            products[window.pendingCode] = { name, price: parseInt(price) };
             localStorage.setItem('need_inventory', JSON.stringify(products));
-            addToCart(pendingBarcode);
+            addToCart(window.pendingCode);
             closeForm();
         }
     }
@@ -159,8 +147,6 @@
     function closeForm() {
         document.getElementById('new-product-form').style.display = 'none';
         document.getElementById('overlay').style.display = 'none';
-        document.getElementById('new-name').value = '';
-        document.getElementById('new-price').value = '';
     }
 
     function renderTable() {
@@ -182,45 +168,41 @@
     }
 
     function updateQty(code, val) {
-        if (parseInt(val) >= 0) {
-            if (parseInt(val) === 0) delete cart[code];
-            else cart[code].qty = parseInt(val);
-            renderTable();
-        }
+        if (parseInt(val) <= 0) delete cart[code];
+        else cart[code].qty = parseInt(val);
+        renderTable();
     }
 
     function startScanner() {
-        const html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScanSuccess)
-        .catch(err => {
-            const scanner = new Html5QrcodeScanner("reader", { fps: 20, qrbox: 250 });
-            scanner.render(onScanSuccess);
+        new Html5Qrcode("reader").start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, onScanSuccess);
+    }
+    window.onload = startScanner;
+
+    function generatePDF() {
+        const element = document.getElementById('invoice-box');
+        
+        // পিডিএফ করার সময় ইনপুট বক্স সরিয়ে শুধু টেক্সট রাখা (Alignment Fix)
+        const inputs = element.querySelectorAll('.qty-input');
+        inputs.forEach(input => {
+            const span = document.createElement('span');
+            span.innerText = input.value;
+            input.parentNode.replaceChild(span, input);
+        });
+
+        const opt = {
+            margin: [5, 2, 5, 2],
+            filename: 'NEED_Bill.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 3, useCORS: true, windowWidth: 280 }, // মোবাইল উইন্ডো ফিক্স
+            jsPDF: { unit: 'mm', format: [80, 160], orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            renderTable(); // সেভ শেষে ইনপুট বক্স ফেরত আনা
         });
     }
 
-    window.onload = startScanner;
-
-    // FINAL PDF FIX FOR OVERFLOW
-    function generatePDF() {
-        const element = document.getElementById('invoice-box');
-        const opt = {
-            margin: [5, 2, 5, 2],
-            filename: 'NEED_Bill_' + Date.now() + '.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-                scale: 3, 
-                useCORS: true, 
-                width: 280, // পিক্সেল উইডথ ফিক্সড করা হয়েছে যাতে ওভারফ্লো না হয়
-                windowWidth: 280 
-            },
-            jsPDF: { unit: 'mm', format: [80, 160], orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(element).save();
-    }
-
-    function resetCart() {
-        if(confirm("Clear bill?")) { cart = {}; renderTable(); }
-    }
+    function resetCart() { if(confirm("Reset?")) { cart={}; renderTable(); } }
 </script>
 </body>
 </html>
