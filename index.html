@@ -10,32 +10,50 @@
         body { font-family: 'Courier New', monospace; background: #f4f4f4; padding: 10px; margin: 0; }
         .container { max-width: 400px; margin: auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        /* Scanner Style */
+        /* Scanner Section */
         #reader { width: 100%; border: 3px solid #000; border-radius: 8px; background: #000; overflow: hidden; margin-bottom: 15px; }
         
-        /* New Product Modal */
+        /* Modal for New Product */
         #new-product-form { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; padding: 20px; border: 2px solid #000; border-radius: 10px; z-index: 1000; width: 85%; box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         #new-product-form input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
 
-        /* 80mm Thermal Receipt Style */
-        #invoice-box { width: 80mm; padding: 5px; margin: auto; background: #fff; color: #000; }
-        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-        .header h2 { margin: 5px 0; font-size: 22px; text-transform: uppercase; }
-        .header p { margin: 2px 0; font-size: 12px; }
+        /* 80mm Thermal Receipt Style (Fixed Overflow) */
+        #invoice-box { 
+            width: 76mm; /* একটু কমানো হয়েছে যাতে মার্জিনে না কাটে */
+            padding: 2mm; 
+            margin: auto; 
+            background: #fff; 
+            color: #000;
+        }
+        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 10px; }
+        .header h2 { margin: 5px 0; font-size: 20px; text-transform: uppercase; }
+        .header p { margin: 2px 0; font-size: 11px; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { border-bottom: 1px solid #000; text-align: left; padding: 5px 0; }
-        td { padding: 8px 0; border-bottom: 0.5px solid #eee; }
+        /* Table Fixes */
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 12px; 
+            table-layout: fixed; /* কলামের মাপ নির্দিষ্ট রাখতে */
+            word-wrap: break-word; 
+        }
+        th, td { padding: 6px 2px; border-bottom: 0.5px solid #eee; vertical-align: top; }
+        th { border-bottom: 1px solid #000; text-align: left; }
         
-        .qty-input { width: 35px; text-align: center; border: 1px solid #ccc; font-weight: bold; }
-        .total-area { border-top: 2px solid #000; margin-top: 15px; padding-top: 10px; text-align: right; font-weight: bold; font-size: 18px; }
+        /* Specific Column Widths */
+        .col-item { width: 50%; }
+        .col-qty { width: 15%; text-align: center; }
+        .col-price { width: 35%; text-align: right; }
+
+        .qty-input { width: 30px; text-align: center; border: 1px solid #ccc; font-size: 12px; }
+        .total-area { border-top: 2px solid #000; margin-top: 10px; padding-top: 8px; text-align: right; font-weight: bold; font-size: 16px; }
         
         .btn-group { display: flex; gap: 8px; margin-top: 20px; }
-        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
-        .btn-save { background: #000; color: #FFD700; } /* Gold on Black */
+        button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn-save { background: #000; color: #FFD700; }
         .btn-clear { background: #ff4444; color: white; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
     </style>
@@ -48,12 +66,12 @@
     <div id="reader"></div>
 
     <div id="new-product-form">
-        <h3 style="margin-top:0">New Product Found!</h3>
-        <p>Barcode: <span id="new-barcode" style="font-weight:bold; color:red;"></span></p>
-        <input type="text" id="new-name" placeholder="Item Name (e.g. T-Shirt)">
+        <h3 style="margin-top:0">New Product!</h3>
+        <p>Code: <span id="new-barcode" style="font-weight:bold; color:red;"></span></p>
+        <input type="text" id="new-name" placeholder="Item Name">
         <input type="number" id="new-price" placeholder="Price (BDT)">
         <div style="display:flex; gap:5px;">
-            <button class="btn-save" onclick="saveNewProduct()">ADD ITEM</button>
+            <button class="btn-save" onclick="saveNewProduct()">ADD</button>
             <button style="background:#ddd" onclick="closeForm()">CANCEL</button>
         </div>
     </div>
@@ -68,15 +86,15 @@
         <table>
             <thead>
                 <tr>
-                    <th style="width:50%">Item</th>
-                    <th style="width:20%">Qty</th>
-                    <th style="width:30%; text-align:right;">Price</th>
+                    <th class="col-item">Item</th>
+                    <th class="col-qty">Qty</th>
+                    <th class="col-price">Total</th>
                 </tr>
             </thead>
             <tbody id="bill-items"></tbody>
         </table>
 
-        <div class="total-area">TOTAL: <span id="grand-total">0</span> BDT</div>
+        <div class="total-area">GRAND TOTAL: <span id="grand-total">0</span> BDT</div>
     </div>
 
     <div class="btn-group">
@@ -95,7 +113,6 @@
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
-    // Local Inventory Storage
     let products = JSON.parse(localStorage.getItem('need_inventory')) || {};
     let cart = {};
     let lastScan = 0;
@@ -106,7 +123,6 @@
         if (now - lastScan > 2000) {
             playBeep();
             if (navigator.vibrate) navigator.vibrate(100);
-            
             if (products[decodedText]) {
                 addToCart(decodedText);
             } else {
@@ -157,9 +173,9 @@
             total += sub;
             tbody.innerHTML += `
                 <tr>
-                    <td>${item.name}</td>
-                    <td><input type="number" class="qty-input" value="${item.qty}" onchange="updateQty('${code}', this.value)"></td>
-                    <td style="text-align:right;">${sub}</td>
+                    <td class="col-item">${item.name}</td>
+                    <td class="col-qty"><input type="number" class="qty-input" value="${item.qty}" onchange="updateQty('${code}', this.value)"></td>
+                    <td class="col-price">${sub}</td>
                 </tr>`;
         }
         document.getElementById('grand-total').innerText = total;
@@ -173,14 +189,10 @@
         }
     }
 
-    // Auto Back Camera Setup
     function startScanner() {
         const html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            { fps: 20, qrbox: { width: 250, height: 150 } },
-            onScanSuccess
-        ).catch(err => {
+        html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScanSuccess)
+        .catch(err => {
             const scanner = new Html5QrcodeScanner("reader", { fps: 20, qrbox: 250 });
             scanner.render(onScanSuccess);
         });
@@ -188,21 +200,26 @@
 
     window.onload = startScanner;
 
-    // Fixed PDF Generation (Right side clipping fixed)
+    // FINAL PDF FIX FOR OVERFLOW
     function generatePDF() {
         const element = document.getElementById('invoice-box');
         const opt = {
-            margin: 2,
+            margin: [5, 2, 5, 2],
             filename: 'NEED_Bill_' + Date.now() + '.pdf',
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 3, useCORS: true, windowWidth: 320 }, // Fixed clipping
-            jsPDF: { unit: 'mm', format: [80, 180], orientation: 'portrait' }
+            html2canvas: { 
+                scale: 3, 
+                useCORS: true, 
+                width: 280, // পিক্সেল উইডথ ফিক্সড করা হয়েছে যাতে ওভারফ্লো না হয়
+                windowWidth: 280 
+            },
+            jsPDF: { unit: 'mm', format: [80, 160], orientation: 'portrait' }
         };
         html2pdf().set(opt).from(element).save();
     }
 
     function resetCart() {
-        if(confirm("Clear all items?")) { cart = {}; renderTable(); }
+        if(confirm("Clear bill?")) { cart = {}; renderTable(); }
     }
 </script>
 </body>
