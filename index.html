@@ -3,46 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEED - Smart Inventory & Billing</title>
+    <title>NEED - Smart Billing System</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { font-family: 'Courier New', monospace; background: #f4f4f4; padding: 10px; margin: 0; }
         .container { max-width: 400px; margin: auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        #reader { width: 100%; border: 3px solid #000; border-radius: 8px; background: #000; overflow: hidden; }
         
-        /* Modal for New Product */
+        /* Scanner Style */
+        #reader { width: 100%; border: 3px solid #000; border-radius: 8px; background: #000; overflow: hidden; margin-bottom: 15px; }
+        
+        /* New Product Modal */
         #new-product-form { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; border: 2px solid gold; border-radius: 10px; z-index: 1000; width: 80%;
+            background: white; padding: 20px; border: 2px solid #000; border-radius: 10px; z-index: 1000; width: 85%; box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
-        input { width: 90%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; }
+        #new-product-form input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+
+        /* 80mm Thermal Receipt Style */
+        #invoice-box { width: 80mm; padding: 5px; margin: auto; background: #fff; color: #000; }
+        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+        .header h2 { margin: 5px 0; font-size: 22px; text-transform: uppercase; }
+        .header p { margin: 2px 0; font-size: 12px; }
         
-        #invoice-box { width: 80mm; padding: 10px; margin: auto; background: #fff; }
-        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { border-bottom: 1px solid #000; text-align: left; padding: 5px 0; }
         td { padding: 8px 0; border-bottom: 0.5px solid #eee; }
-        .qty-input { width: 40px; text-align: center; font-weight: bold; }
+        
+        .qty-input { width: 35px; text-align: center; border: 1px solid #ccc; font-weight: bold; }
         .total-area { border-top: 2px solid #000; margin-top: 15px; padding-top: 10px; text-align: right; font-weight: bold; font-size: 18px; }
+        
         .btn-group { display: flex; gap: 8px; margin-top: 20px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-save { background: #000; color: gold; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn-save { background: #000; color: #FFD700; } /* Gold on Black */
         .btn-clear { background: #ff4444; color: white; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
     </style>
 </head>
 <body>
+
+<div class="overlay" id="overlay"></div>
 
 <div class="container">
     <div id="reader"></div>
 
     <div id="new-product-form">
-        <h3>New Product Found!</h3>
-        <p>Barcode: <span id="new-barcode"></span></p>
-        <input type="text" id="new-name" placeholder="Product Name">
+        <h3 style="margin-top:0">New Product Found!</h3>
+        <p>Barcode: <span id="new-barcode" style="font-weight:bold; color:red;"></span></p>
+        <input type="text" id="new-name" placeholder="Item Name (e.g. T-Shirt)">
         <input type="number" id="new-price" placeholder="Price (BDT)">
-        <button class="btn-save" onclick="saveNewProduct()">Add to Inventory</button>
-        <button style="background:#ddd" onclick="closeForm()">Cancel</button>
+        <div style="display:flex; gap:5px;">
+            <button class="btn-save" onclick="saveNewProduct()">ADD ITEM</button>
+            <button style="background:#ddd" onclick="closeForm()">CANCEL</button>
+        </div>
     </div>
 
     <div id="invoice-box">
@@ -51,16 +64,24 @@
             <p>চানখারপুল, ৩৭ নবাব কাটারা, নিমতলী</p>
             <p>মোবাইল: +880 1616-538522</p>
         </div>
+
         <table>
-            <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
+            <thead>
+                <tr>
+                    <th style="width:50%">Item</th>
+                    <th style="width:20%">Qty</th>
+                    <th style="width:30%; text-align:right;">Price</th>
+                </tr>
+            </thead>
             <tbody id="bill-items"></tbody>
         </table>
+
         <div class="total-area">TOTAL: <span id="grand-total">0</span> BDT</div>
     </div>
 
     <div class="btn-group">
         <button class="btn-save" onclick="generatePDF()">SAVE RECEIPT 📥</button>
-        <button class="btn-clear" onclick="resetCart()">RESET CART 🗑️</button>
+        <button class="btn-clear" onclick="resetCart()">RESET 🗑️</button>
     </div>
 </div>
 
@@ -74,11 +95,8 @@
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
-    // Load products from localStorage or use default
-    let products = JSON.parse(localStorage.getItem('need_inventory')) || {
-        "12345678": { name: "NEED Premium", price: 1200 }
-    };
-
+    // Local Inventory Storage
+    let products = JSON.parse(localStorage.getItem('need_inventory')) || {};
     let cart = {};
     let lastScan = 0;
     let pendingBarcode = "";
@@ -108,24 +126,23 @@
         pendingBarcode = code;
         document.getElementById('new-barcode').innerText = code;
         document.getElementById('new-product-form').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
     }
 
     function saveNewProduct() {
         const name = document.getElementById('new-name').value;
         const price = document.getElementById('new-price').value;
-
         if (name && price) {
             products[pendingBarcode] = { name: name, price: parseInt(price) };
             localStorage.setItem('need_inventory', JSON.stringify(products));
             addToCart(pendingBarcode);
             closeForm();
-        } else {
-            alert("Please enter name and price");
         }
     }
 
     function closeForm() {
         document.getElementById('new-product-form').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
         document.getElementById('new-name').value = '';
         document.getElementById('new-price').value = '';
     }
@@ -138,28 +155,54 @@
             const item = cart[code];
             const sub = item.price * item.qty;
             total += sub;
-            tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.qty}</td><td>${sub}</td></tr>`;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td><input type="number" class="qty-input" value="${item.qty}" onchange="updateQty('${code}', this.value)"></td>
+                    <td style="text-align:right;">${sub}</td>
+                </tr>`;
         }
         document.getElementById('grand-total').innerText = total;
     }
 
-    function startAutoScanner() {
-        const html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, onScanSuccess);
+    function updateQty(code, val) {
+        if (parseInt(val) >= 0) {
+            if (parseInt(val) === 0) delete cart[code];
+            else cart[code].qty = parseInt(val);
+            renderTable();
+        }
     }
 
-    window.onload = startAutoScanner;
+    // Auto Back Camera Setup
+    function startScanner() {
+        const html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            { fps: 20, qrbox: { width: 250, height: 150 } },
+            onScanSuccess
+        ).catch(err => {
+            const scanner = new Html5QrcodeScanner("reader", { fps: 20, qrbox: 250 });
+            scanner.render(onScanSuccess);
+        });
+    }
 
+    window.onload = startScanner;
+
+    // Fixed PDF Generation (Right side clipping fixed)
     function generatePDF() {
         const element = document.getElementById('invoice-box');
-        html2pdf().set({
-            margin: 5, filename: 'NEED_Bill.pdf',
-            jsPDF: { unit: 'mm', format: [80, 150], orientation: 'portrait' }
-        }).from(element).save();
+        const opt = {
+            margin: 2,
+            filename: 'NEED_Bill_' + Date.now() + '.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 3, useCORS: true, windowWidth: 320 }, // Fixed clipping
+            jsPDF: { unit: 'mm', format: [80, 180], orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
     }
 
     function resetCart() {
-        cart = {}; renderTable();
+        if(confirm("Clear all items?")) { cart = {}; renderTable(); }
     }
 </script>
 </body>
