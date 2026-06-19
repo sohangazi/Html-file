@@ -1,40 +1,600 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEED - Smart Billing System</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <style>
-        body { font-family: 'Courier New', monospace; background: #f4f4f4; padding: 10px; margin: 0; }
-        .container { max-width: 400px; margin: auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        
-        #reader { width: 100%; border: 3px solid #000; border-radius: 8px; background: #000; overflow: hidden; margin-bottom: 15px; }
-        
-        #new-product-form { 
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; border: 2px solid #000; border-radius: 10px; z-index: 1000; width: 85%; 
-        }
-        #new-product-form input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; }
+    <title>কর্মীদের ব্যক্তিগত দৈনিক রিপোর্ট</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-        /* 80mm Thermal Paper Optimized Style */
-        #invoice-box { 
-            width: 75mm; /* কাগজের ভেতরে রাখার জন্য কমানো হয়েছে */
-            padding: 2mm; 
-            margin: auto; 
-            background: #fff; 
-            color: #000; 
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 10px; }
-        .header h2 { margin: 5px 0; font-size: 18px; text-transform: uppercase; }
-        .header p { margin: 2px 0; font-size: 10px; }
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
         
-        /* Table Structure Fixes */
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            font-size: 10px; /* ফন্ট সাইজ কমিয়ে ১০ করা হয়েছে */
+        /* Header Styles */
+        .report-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 3px double #2e7d32;
+            padding-bottom: 10px;
+        }
+        .report-header h1 {
+            color: #2e7d32;
+            font-size: 26px;
+            margin-bottom: 5px;
+        }
+        .report-header h2 {
+            color: #455a64;
+            font-size: 20px;
+            font-weight: normal;
+        }
+        
+        /* User Info Grid - ১ লাইনে রাখার জন্য ফিক্সড ৩ কলাম করা হয়েছে */
+        .user-info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 12px;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .input-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 13px;
+            white-space: nowrap; /* টেক্সট যাতে ভেঙে নিচে না যায় */
+        }
+        .input-group input {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: 'Noto Sans Bengali', sans-serif;
+            font-size: 13px;
+            width: 100%;
+        }
+        .input-group input:focus {
+            border-color: #2e7d32;
+            outline: none;
+        }
+
+        /* Controls Navigation */
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn {
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-family: 'Noto Sans Bengali', sans-serif;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:hover {
+            background-color: #1b5e20;
+        }
+        .btn-secondary {
+            background-color: #455a64;
+        }
+        .btn-secondary:hover {
+            background-color: #263238;
+        }
+        .current-month-display {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2e7d32;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        /* Table Design */
+        .table-responsive {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        #reportTable {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 13px;
+        }
+        #reportTable th, #reportTable td {
+            border: 1px solid #bdc3c7;
+            padding: 10px 6px;
+            word-wrap: break-word;
+        }
+        #reportTable th {
+            background-color: #2e7d32;
+            color: white;
+            font-weight: bold;
+        }
+        #reportTable tbody tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #reportTable tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        #reportTable tbody tr:hover {
+            background-color: #e8f5e9;
+        }
+
+        /* Modal Popup Styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-header {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2e7d32;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-close {
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            color: #aaa;
+        }
+        .modal-close:hover {
+            color: #000;
+        }
+        .modal-form .input-group {
+            margin-bottom: 12px;
+        }
+        .modal-form select, .modal-form textarea {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: 'Noto Sans Bengali', sans-serif;
+            font-size: 14px;
+            width: 100%;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .checkbox-group label {
+            font-weight: bold;
+            font-size: 14px;
+            color: #555;
+        }
+        .checkbox-group input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .modal-footer {
+            margin-top: 15px;
+            text-align: right;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+
+        /* Print Specific CSS */
+        @media print {
+            .btn, .controls-row, .modal {
+                display: none !important;
+            }
+            body {
+                background-color: #fff;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+                max-width: 100% !important;
+                width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="pdfContent">
+    <div class="report-header">
+        <h1>বাংলাদেশ জামায়াতে ইসলামী</h1>
+        <h2>কর্মীদের ব্যক্তিগত দৈনিক রিপোর্ট</h2>
+    </div>
+
+    <div class="user-info-grid">
+        <div class="input-group">
+            <label for="userName">ব্যবহারকারীর নাম:</label>
+            <input type="text" id="userName" placeholder="নাম লিখুন">
+        </div>
+        <div class="input-group">
+            <label for="userMobile">মোবাইল নম্বর:</label>
+            <input type="text" id="userMobile" placeholder="মোবাইল নম্বর লিখুন">
+        </div>
+        <div class="input-group">
+            <label for="wordNo">ওয়ার্ড নম্বর:</label>
+            <input type="text" id="wordNo" placeholder="ওয়ার্ড নম্বর লিখুন">
+        </div>
+    </div>
+
+    <div class="controls-row">
+        <div class="month-selector">
+            <button class="btn btn-secondary" onclick="changeMonth(-1)">পূর্ববর্তী মাস (<<)</button>
+            <span class="current-month-display" id="currentMonthLabel"></span>
+            <button class="btn btn-secondary" onclick="changeMonth(1)">(>>) পরবর্তী মাস</button>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn" onclick="generatePDF('today')">আজকের রিপোর্ট</button>
+            <button class="btn" onclick="generatePDF('month')">সম্পূর্ণ মাসের রিপোর্ট</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table id="reportTable">
+            <thead>
+                <tr>
+                    <th style="width: 7%;">তারিখ</th>
+                    <th style="width: 12%;">কুরআন পাঠ<br>(পরা/পৃষ্ঠা)</th>
+                    <th style="width: 14%;">ইসলামি সাহিত্য অধ্যয়ন<br>(পৃষ্ঠা/মিনিট)</th>
+                    <th style="width: 12%;">জামায়াতে নামাজ<br>(ওয়াক্ত সংখ্যা)</th>
+                    <th style="width: 12%;">দাওয়াতি টার্গেট সাক্ষাত<br>(কতবার)</th>
+                    <th style="width: 10%;">বই বিলি<br>(কতটি)</th>
+                    <th style="width: 10%;">সামাজিক কাজ<br>(হ্যাঁ/না)</th>
+                    <th style="width: 10%;">আত্মসমালোচনা<br>(হ্যাঁ/না)</th>
+                    <th style="width: 13%;">মন্তব্য</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal" id="editModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span id="modalTitle">টাস্ক এডিট করুন</span>
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-form">
+            <input type="hidden" id="editDateKey">
+            
+            <div class="input-group">
+                <label for="modalQuran">কুরআন পাঠ (পরা/পৃষ্ঠা):</label>
+                <input type="text" id="modalQuran">
+            </div>
+            
+            <div class="input-group">
+                <label for="modalLiterature">ইসলামি সাহিত্য অধ্যয়ন (পৃষ্ঠা/মিনিট):</label>
+                <input type="text" id="modalLiterature">
+            </div>
+            
+            <div class="input-group">
+                <label for="modalPrayer">জামায়াতে নামাজ (ওয়াক্ত সংখ্যা):</label>
+                <select id="modalPrayer">
+                    <option value="0">০</option>
+                    <option value="1">১</option>
+                    <option value="2">২</option>
+                    <option value="3">৩</option>
+                    <option value="4">৪</option>
+                    <option value="5">৫</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="modalDawah">দাওয়াতি টার্গেট সাক্ষাত (কতবার):</label>
+                <input type="number" id="modalDawah" min="0">
+            </div>
+            
+            <div class="input-group">
+                <label for="modalBooks">বই বিলি (কতটি):</label>
+                <input type="number" id="modalBooks" min="0">
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="modalSocial">
+                <label for="modalSocial">সামাজিক কাজ (হ্যাঁ)</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="modalSelfCrit">
+                <label for="modalSelfCrit">আত্মসমালোচনা (হ্যাঁ)</label>
+            </div>
+            
+            <div class="input-group">
+                <label for="modalComment">মন্তব্য:</label>
+                <textarea id="modalComment" rows="2"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">বাতিল</button>
+            <button class="btn" onclick="saveRowData()">সংরক্ষণ করুন</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentDate = new Date();
+    let monthlyData = {};
+
+    function toBanglaDigits(num) {
+        const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+        return num.toString().replace(/\d/g, d => banglaDigits[d]);
+    }
+
+    const monthNamesBn = [
+        "জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", 
+        "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"
+    ];
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadUserInfo();
+        loadMonthData();
+        
+        document.getElementById('userName').addEventListener('input', saveUserInfo);
+        document.getElementById('userMobile').addEventListener('input', saveUserInfo);
+        document.getElementById('wordNo').addEventListener('input', saveUserInfo);
+    });
+
+    // LocalStorage Functions
+    function getUserInfoKey() { return `bji_report_user_info`; }
+    function getStorageKey() {
+        return `bji_report_${currentDate.getFullYear()}_${currentDate.getMonth() + 1}`;
+    }
+    function saveUserInfo() {
+        const info = {
+            name: document.getElementById('userName').value,
+            mobile: document.getElementById('userMobile').value,
+            word: document.getElementById('wordNo').value
+        };
+        localStorage.setItem(getUserInfoKey(), JSON.stringify(info));
+    }
+    function loadUserInfo() {
+        const infoRaw = localStorage.getItem(getUserInfoKey());
+        if (infoRaw) {
+            const info = JSON.parse(infoRaw);
+            document.getElementById('userName').value = info.name || '';
+            document.getElementById('userMobile').value = info.mobile || '';
+            document.getElementById('wordNo').value = info.word || '';
+        }
+    }
+    function loadMonthData() {
+        const stored = localStorage.getItem(getStorageKey());
+        monthlyData = stored ? JSON.parse(stored) : {};
+        updateMonthUI();
+        renderTable();
+    }
+    function updateMonthUI() {
+        document.getElementById('currentMonthLabel').innerText = `${monthNamesBn[currentDate.getMonth()]}, ${toBanglaDigits(currentDate.getFullYear())}`;
+    }
+    function changeMonth(offset) {
+        currentDate.setMonth(currentDate.getMonth() + offset);
+        loadMonthData();
+    }
+    function daysInMonth(month, year) { return new Date(year, month + 1, 0).getDate(); }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        const totalDays = daysInMonth(currentDate.getMonth(), currentDate.getFullYear());
+        
+        for (let day = 1; day <= totalDays; day++) {
+            const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const data = monthlyData[dateStr] || { quran: '', literature: '', prayer: '০', dawah: '', books: '', social: false, selfCrit: false, comment: '' };
+            
+            const tr = document.createElement('tr');
+            tr.setAttribute('onclick', `openEditModal('${dateStr}')`);
+            
+            tr.innerHTML = `
+                <td><strong>${toBanglaDigits(day)}</strong></td>
+                <td>${escapeHtml(data.quran)}</td>
+                <td>${escapeHtml(data.literature)}</td>
+                <td>${toBanglaDigits(data.prayer || 0)}</td>
+                <td>${data.dawah !== '' ? toBanglaDigits(data.dawah) : ''}</td>
+                <td>${data.books !== '' ? toBanglaDigits(data.books) : ''}</td>
+                <td>${data.social ? 'হ্যাঁ' : 'না'}</td>
+                <td>${data.selfCrit ? 'হ্যাঁ' : 'না'}</td>
+                <td style="text-align: left; padding-left: 5px;">${escapeHtml(data.comment)}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function openEditModal(dateStr) {
+        const data = monthlyData[dateStr] || { quran: '', literature: '', prayer: '০', dawah: '', books: '', social: false, selfCrit: false, comment: '' };
+        document.getElementById('editDateKey').value = dateStr;
+        document.getElementById('modalTitle').innerText = `${toBanglaDigits(parseInt(dateStr.split('-')[2]))} ${monthNamesBn[parseInt(dateStr.split('-')[1]) - 1]} - টাস্ক এডিট`;
+        document.getElementById('modalQuran').value = data.quran || '';
+        document.getElementById('modalLiterature').value = data.literature || '';
+        document.getElementById('modalPrayer').value = data.prayer || '০';
+        document.getElementById('modalDawah').value = data.dawah || '';
+        document.getElementById('modalBooks').value = data.books || '';
+        document.getElementById('modalSocial').checked = !!data.social;
+        document.getElementById('modalSelfCrit').checked = !!data.selfCrit;
+        document.getElementById('modalComment').value = data.comment || '';
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    function saveRowData() {
+        const dateStr = document.getElementById('editDateKey').value;
+        monthlyData[dateStr] = {
+            quran: document.getElementById('modalQuran').value,
+            literature: document.getElementById('modalLiterature').value,
+            prayer: document.getElementById('modalPrayer').value,
+            dawah: document.getElementById('modalDawah').value,
+            books: document.getElementById('modalBooks').value,
+            social: document.getElementById('modalSocial').checked,
+            selfCrit: document.getElementById('modalSelfCrit').checked,
+            comment: document.getElementById('modalComment').value
+        };
+        localStorage.setItem(getStorageKey(), JSON.stringify(monthlyData));
+        closeModal();
+        renderTable();
+    }
+
+    // ** অপ্টিমাইজড পিডিএফ লজিক (আজকের জন্য আলাদা সেটিং) **
+    function generatePDF(mode) {
+        const { jsPDF } = window.jspdf;
+        const element = document.getElementById('pdfContent');
+        const originalRows = Array.from(document.querySelectorAll('#reportTable tbody tr'));
+
+        const isTodayMode = (mode === 'today');
+        // আজকের রিপোর্টের জন্য প্রস্থ ৮৫০ থেকে কমিয়ে ৭০০ করা হয়েছে এবং ফন্ট/প্যাডিং আলাদা করা হয়েছে
+        const targetWidth = isTodayMode ? 700 : 850; 
+        
+        if (isTodayMode) {
+            const today = new Date();
+            if (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() === today.getMonth()) {
+                originalRows.forEach(tr => {
+                    if (tr.querySelector('td strong').innerText !== toBanglaDigits(today.getDate())) {
+                        tr.style.display = 'none';
+                    }
+                });
+            } else {
+                alert("আজকের তারিখটি এই মাসের ভিউতে নেই।"); return;
+            }
+        }
+
+        // রেন্ডারিংয়ের জন্য প্রস্থ লক করা
+        const originalWidth = element.style.width;
+        const originalMaxWidth = element.style.maxWidth;
+        element.style.width = targetWidth + 'px';
+        element.style.maxWidth = targetWidth + 'px';
+
+        // আজকের রিপোর্টে ফন্ট ও প্যাডিং বড় করা যাতে এক লাইনে ডেটা সুন্দর দেখায়
+        const fontSize = isTodayMode ? '12px' : '11px';
+        const cellPadding = isTodayMode ? '5px 6px' : '3.5px 4px';
+
+        const allThTd = document.querySelectorAll('#reportTable th, #reportTable td');
+        const savedStyles = [];
+        allThTd.forEach(el => {
+            savedStyles.push({ element: el, fontSize: el.style.fontSize, padding: el.style.padding });
+            el.style.fontSize = fontSize;
+            el.style.padding = cellPadding;
+        });
+
+        const opt = {
+            scale: 2.5, 
+            letterRendering: true,
+            useCORS: true,
+            logging: false,
+            width: targetWidth,
+            windowWidth: targetWidth
+        };
+
+        setTimeout(() => {
+            html2canvas(element, opt).then(canvas => {
+                // মূল স্টাইল ফিরিয়ে দেওয়া
+                element.style.width = originalWidth;
+                element.style.maxWidth = originalMaxWidth;
+                savedStyles.forEach(s => { s.element.style.fontSize = s.fontSize; s.element.style.padding = s.padding; });
+                if (isTodayMode) originalRows.forEach(tr => tr.style.display = '');
+
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const margin = 2; 
+                const maxWidth = 210 - (2 * margin); 
+                const maxPageHeight = 297 - (2 * margin); 
+                
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                
+                let imgWidth = maxWidth;
+                let imgHeight = (canvasHeight * imgWidth) / canvasWidth;
+                
+                // সম্পূর্ণ মাসের রিপোর্টের জন্য উচ্চতা স্ট্রেচ করা হবে (আজকের জন্য না)
+                if (imgHeight < maxPageHeight && !isTodayMode) {
+                    imgHeight = maxPageHeight; 
+                } else if (imgHeight > maxPageHeight) {
+                    const ratio = maxPageHeight / imgHeight;
+                    imgHeight = maxPageHeight;
+                    imgWidth = imgWidth * ratio;
+                }
+
+                const x = margin + (maxWidth - imgWidth) / 2;
+                const imgData = canvas.toDataURL('image/png');
+                pdf.addImage(imgData, 'PNG', x, margin, imgWidth, imgHeight);
+                
+                pdf.save(`${isTodayMode ? 'daily' : 'monthly'}_report_${currentDate.getFullYear()}_${currentDate.getMonth() + 1}.pdf`);
+            });
+        }, 30);
+    }
+</script>
+
+</body>
+</html>            font-size: 10px; /* ফন্ট সাইজ কমিয়ে ১০ করা হয়েছে */
             table-layout: fixed; 
         }
         th, td { 
