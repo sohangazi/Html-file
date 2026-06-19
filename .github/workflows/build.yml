@@ -32,7 +32,7 @@ jobs:
           cat <<EOF > capacitor.config.json
           {
             "appId": "com.ec.aoo",
-            "appName": "Barcode Scaner",
+            "appName": "Daily Report",
             "webDir": "dist",
             "server": {
               "androidScheme": "https",
