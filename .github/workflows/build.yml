@@ -1,40 +1,46 @@
-name: Build Android APK
-on: [push]
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      # আপনি যদি অন্য কোনো ব্রাঞ্চে পুশ করেন, তবে সেটিও এখানে যুক্ত করতে পারেন
+  workflow_dispatch:
+
+# ডেপ্লয়মেন্টের জন্য পারমিশন সেট করা
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# একাধিক ডেপ্লয়মেন্ট হলে একে অপরকে ক্যান্সেল করার জন্য
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
-  build:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+      
+      # যেহেতু আপনার প্রজেক্টে কোনো বিল্ড টুল (যেমন npm run build) নেই, 
+      # তাই আমরা সরাসরি পুরো ফোল্ডারটি আপলোড করে দেব
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          java-version: '21'
-          distribution: 'temurin'
-      - name: Install Dependencies
-        run: npm install --force
-      - name: Build Web Project
-        run: |
-         
-          npm run build -- --base=./ || npm run build || true
-          if [ ! -d "dist" ]; then
-            mkdir -p dist
-            cp index.html dist/ 2>/dev/null || true
-          fi
-      - name: Setup Capacitor Config
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-         
-         
-         
-          cat <<EOF > capacitor.config.json
-          {
-            "appId": "com.ec.aoo",
-            "appName": "Daily Report",
-            "webDir": "dist",
-            "server": {
+          path: '.' 
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4            "server": {
               "androidScheme": "https",
               "hostname": "localhost",
               "cleartext": true
